@@ -3,47 +3,53 @@ from O365.message import Message
 from O365.mailbox import MailBox
 from O365.mailbox import Message
 import random
-from flask import Flask
+import requests
+from flask import Flask,request, redirect, render_template
+from tinydb import TinyDB, Query
 
 app = Flask(__name__)
+
+db = TinyDB('db.json') 
 
 CLIENT_ID = '5c03807f-4363-4c78-ac85-2f903305d917'
 CLIENT_SECRET = 'Eri07B8vVW:HQQ/_eNX4tNeEKl-wPVy['
 credentials = (CLIENT_ID, CLIENT_SECRET)
 
-scopes = ['basic', 'message_all']
+
 
 #account = Account(credentials)
 #if account.authenticate(scopes = ['basic', 'message_all']):
  #   print('Authenticated!')
 
 
+#@app.route('/')
+#def hello_world():
+#    return 'Hello, World!'
+
+
 @app.route('/')
-def hello_world():
-    return 'Hello, World!'
-
-
-@route('/stepone')
 def auth_step_one():
-
-    callback = 'http://localhost:5000/steptwo'
-    account = Account(credentials)
-    url, state = account.con.get_authorization_url(requested_scopes=scopes redirect_uri= callback)
+    
+    callback = 'http://127.0.0.1:5000/steptwo'
+    scopes = ['https://graph.microsoft.com/Mail.ReadWrite', 'https://graph.microsoft.com/Mail.Send', 'https://graph.microsoft.com/Offline.Access', 'https://graph.microsoft.com/User.Read']
+    account = Account(credentials, scopes = ['https://graph.microsoft.com/Mail.ReadWrite', 'https://graph.microsoft.com/Mail.Send', 'https://graph.microsoft.com/Offline.Access', 'https://graph.microsoft.com/User.Read'])
+    url, state = account.con.get_authorization_url(requested_scopes=scopes, redirect_uri= callback)
 
     # the state must be saved somewhere as it will be needed later
-    my_db.store_state(state) # example...   
-
-    return Flask.redirect(url)
-
-@route('/steptwo')
-def auth_step_two_callback():
-    account = Account(credentials)
+    db.insert({'state':state})
     
+    return redirect(url)
+
+@app.route('/steptwo')
+def auth_step_two_callback():
+    account = Account(credentials, scopes = ['https://graph.microsoft.com/Mail.ReadWrite', 'https://graph.microsoft.com/Mail.Send', 'https://graph.microsoft.com/Offline.Access', 'https://graph.microsoft.com/User.Read'])
+    q = Query
+    states = db.search(q.state.exists())
     # retreive the state saved in auth_step_one
-    my_saved_state = my_db.get_state()  # example...
+    my_saved_state = states[0]['state']
     
     # rebuild the redirect_uri used in auth_step_one
-    callback = 'my absolute url to auth_step_two_callback'
+    callback = 'http://127.0.0.1:5000/steptwo'
     
     result = account.con.request_token(request.url, 
                                        state=my_saved_state,
@@ -51,11 +57,11 @@ def auth_step_two_callback():
     # if result is True, then authentication was succesful 
     #  and the auth token is stored in the token backend
     if result:
-        return Flask.render_template('auth_complete.html')
+        return render_template('auth_complete.html')
     
     
 def main():
-    account = Account(credentials)
+    account = Account(credentials, scopes = ['https://graph.microsoft.com/Mail.ReadWrite', 'https://graph.microsoft.com/Mail.Send', 'https://graph.microsoft.com/Offline.Access', 'https://graph.microsoft.com/User.Read'])
     mailbox = account.mailbox()
     inbox = mailbox.inbox_folder()
 
