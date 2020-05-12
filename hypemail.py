@@ -27,6 +27,23 @@ scopes = protocol.get_scopes_for('basic') + protocol.get_scopes_for('message_all
 #def hello_world():
 #    return 'Hello, World!'
 
+def main():
+    account = Account(credentials)
+    mailbox = account.mailbox()
+    inbox = mailbox.inbox_folder()
+
+    messages = []
+    hype = ['POG,','It\'s Hype Robot, here at world email contest and we have a tough challenge between 2 world class emailers, but the one who will clearly win is the one who called me here.']
+    for message in inbox.get_messages():
+        if not message.is_read:
+            messages.append(message)
+        
+    for message in messages:
+        message.mark_as_read()
+        m = message.reply()
+        body = random.choice(hype) + '\n\nthis is an automated message, hope the person who request the hype is satisfied'
+        m.body = body
+        m.send()
 
 @app.route('/')
 def auth_step_one():
@@ -46,9 +63,7 @@ def auth_step_one():
 @app.route('/steptwo')
 def auth_step_two_callback():
     account = Account(credentials)
-    #if not account.is_authenticated:
-    #account.authenticate(scopes=scopes)
-    # retreive the state saved in auth_step_one
+
     with open('state.txt') as statefile:
         state = statefile.read()
    
@@ -61,25 +76,7 @@ def auth_step_two_callback():
     # if result is True, then authentication was succesful 
     #  and the auth token is stored in the token backend
     if result:
+        main()
         return render_template('auth_complete.html')
     
 
-def main():
-    account = Account(credentials)
-    if not account.is_authenticated:
-        account.authenticate(scopes=scopes)
-    mailbox = account.mailbox()
-    inbox = mailbox.inbox_folder()
-
-    messages = []
-    hype = ['POG,','It\'s Hype Robot, here at world email contest and we have a tough challenge between 2 world class emailers, but the one who will clearly win is the one who called me here.']
-    for message in inbox.get_messages():
-        if not message.is_read():
-            messages.append(message)
-        
-    for message in messages:
-        message.mark_as_read()
-        m = message.reply()
-        body = random.choice(hype) + '\n\nthis is an automated message, hope the person who request the hype is satisfied'
-        m.body = body
-        m.send()
