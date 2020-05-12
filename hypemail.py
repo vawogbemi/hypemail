@@ -3,14 +3,17 @@ from O365.message import Message
 from O365.mailbox import MailBox
 from O365.mailbox import Message
 from O365 import MSGraphProtocol
+from flask import Flask,request, redirect, render_template
 import random
 import requests
-from flask import Flask,request, redirect, render_template
+import time
 
 app = Flask(__name__)
 
-
-
+#absolute url to location where site is hosted 
+url = 'https://localhost:5000/'
+#how often you want api to be called
+refreshrate = 600
 CLIENT_ID = '5c03807f-4363-4c78-ac85-2f903305d917'
 CLIENT_SECRET = 'Eri07B8vVW:HQQ/_eNX4tNeEKl-wPVy['
 credentials = (CLIENT_ID, CLIENT_SECRET)
@@ -77,6 +80,8 @@ def auth_step_two_callback():
     #  and the auth token is stored in the token backend
     if result:
         main()
-        return render_template('auth_complete.html')
+        time.sleep(refreshrate)
+        return redirect(url)
+
     
 
