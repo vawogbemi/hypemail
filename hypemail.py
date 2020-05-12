@@ -2,21 +2,22 @@ from O365 import Account
 from O365.message import Message
 from O365.mailbox import MailBox
 from O365.mailbox import Message
+from O365 import MSGraphProtocol
 import random
 import requests
 from flask import Flask,request, redirect, render_template
-from tinydb import TinyDB, Query
 
 app = Flask(__name__)
 
-db = TinyDB('db.json') 
+
 
 CLIENT_ID = '5c03807f-4363-4c78-ac85-2f903305d917'
 CLIENT_SECRET = 'Eri07B8vVW:HQQ/_eNX4tNeEKl-wPVy['
 credentials = (CLIENT_ID, CLIENT_SECRET)
 
-
-
+protocol = MSGraphProtocol()
+scopes = protocol.get_scopes_for('basic') + protocol.get_scopes_for('message_all')
+#scopes = ['basic', 'message_all']
 #account = Account(credentials)
 #if account.authenticate(scopes = ['basic', 'message_all']):
  #   print('Authenticated!')
@@ -30,38 +31,43 @@ credentials = (CLIENT_ID, CLIENT_SECRET)
 @app.route('/')
 def auth_step_one():
     
-    callback = 'http://127.0.0.1:5000/steptwo'
-    scopes = ['https://graph.microsoft.com/Mail.ReadWrite', 'https://graph.microsoft.com/Mail.Send', 'https://graph.microsoft.com/Offline.Access', 'https://graph.microsoft.com/User.Read']
-    account = Account(credentials, scopes = ['https://graph.microsoft.com/Mail.ReadWrite', 'https://graph.microsoft.com/Mail.Send', 'https://graph.microsoft.com/Offline.Access', 'https://graph.microsoft.com/User.Read'])
+    callback = 'https://localhost:5000/steptwo'
+    
+    account = Account(credentials)
     url, state = account.con.get_authorization_url(requested_scopes=scopes, redirect_uri= callback)
 
     # the state must be saved somewhere as it will be needed later
-    db.insert({'state':state})
+    with open('state.txt', 'w') as statefile:
+        statefile.write(state)
+
     
     return redirect(url)
 
 @app.route('/steptwo')
 def auth_step_two_callback():
-    account = Account(credentials, scopes = ['https://graph.microsoft.com/Mail.ReadWrite', 'https://graph.microsoft.com/Mail.Send', 'https://graph.microsoft.com/Offline.Access', 'https://graph.microsoft.com/User.Read'])
-    q = Query
-    states = db.search(q.state.exists())
+    account = Account(credentials)
+    #if not account.is_authenticated:
+    #account.authenticate(scopes=scopes)
     # retreive the state saved in auth_step_one
-    my_saved_state = states[0]['state']
-    
+    with open('state.txt') as statefile:
+        state = statefile.read()
+   
     # rebuild the redirect_uri used in auth_step_one
-    callback = 'http://127.0.0.1:5000/steptwo'
+    callback = 'https://localhost:5000/steptwo'
     
     result = account.con.request_token(request.url, 
-                                       state=my_saved_state,
+                                       state=state,
                                        redirect_uri=callback)
     # if result is True, then authentication was succesful 
     #  and the auth token is stored in the token backend
     if result:
         return render_template('auth_complete.html')
     
-    
+
 def main():
-    account = Account(credentials, scopes = ['https://graph.microsoft.com/Mail.ReadWrite', 'https://graph.microsoft.com/Mail.Send', 'https://graph.microsoft.com/Offline.Access', 'https://graph.microsoft.com/User.Read'])
+    account = Account(credentials)
+    if not account.is_authenticated:
+        account.authenticate(scopes=scopes)
     mailbox = account.mailbox()
     inbox = mailbox.inbox_folder()
 
